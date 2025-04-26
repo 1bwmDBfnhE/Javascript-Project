@@ -56,21 +56,35 @@ let transactions = getTransactionsFromStorage();
 function addTransaction(e, descriptionEl, amountEl, categoryEl, dateEl) {
   e.preventDefault();
 
+  const description = descriptionEl.value.trim();
   const amount = parseFloat(amountEl.value);
-
-  const description = descriptionEl.value;
   const category = categoryEl.value;
   const date = dateEl.value;
 
+  // Validate inputs
+  if (!description || isNaN(amount) || amount === 0 || !category) {
+    alert("Please fill in all fields correctly.");
+    return;
+  }
+
   const newTransaction = {
+    id: generateID(),
     description,
     amount,
     category,
     date,
   };
 
-  transaction.push(newTransaction);
+  transactions.push(newTransaction); // Push to the transactions array
   updateLocalStorage();
+
+  // Reset form inputs
+  descriptionEl.value = '';
+  amountEl.value = '';
+  categoryEl.value = ''; // Optional, if you want to reset category dropdown
+  dateEl.value = ''; // Optional, if you want to reset date
+
+  init(); // Reinitialize the app to reflect the new transaction
 }
 
 // Generate unique ID
@@ -112,12 +126,14 @@ function updateValues(balanceEl, incomeEl, expenseEl) {
 }
 
 // Add transactions to DOM
+// Add transactions to DOM
 function addTransactionDOM(transaction, transactionListEl) {
-  const sign = "-";
+  const sign = transaction.amount < 0 ? "-" : "+";
 
   const item = document.createElement("li");
 
-  item.className = transaction.category === "income" ? "expense" : "income";
+  // Dynamically assign a class based on transaction type (income/expense)
+  item.className = transaction.amount < 0 ? "expense" : "income";
 
   const detailsDiv = document.createElement("div");
   detailsDiv.className = "details";
@@ -140,9 +156,7 @@ function addTransactionDOM(transaction, transactionListEl) {
 
   const amountSpan = document.createElement("span");
   amountSpan.className = "amount";
-  amountSpan.textContent = `${sign}Rs ${Math.abs(transaction.amount).toFixed(
-    2
-  )}`;
+  amountSpan.textContent = `${sign} Rs ${Math.abs(transaction.amount).toFixed(2)}`; // Ensure two decimals
 
   let deleteBtn = document.createElement("button");
   deleteBtn.className = "delete-btn";
@@ -155,7 +169,7 @@ function addTransactionDOM(transaction, transactionListEl) {
   // Don't change the following line
   transactionListEl.insertAdjacentHTML("beforeend", item.outerHTML);
 
-  // Don't change the following line
+  // Assign delete button functionality
   deleteBtn = transactionListEl.lastElementChild.querySelector(".delete-btn");
 }
 
@@ -270,13 +284,12 @@ function createChart(chartContainer) {
 function generateReport() {
   let reportText = "Budget Report\n\n";
 
-  // Summary
   const totalIncome = transactions
     .filter((t) => t.amount > 0)
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalExpense = transactions
-    .filter((t) => t.amount > 0)
+    .filter((t) => t.amount < 0)
     .reduce((acc, t) => acc + t.amount, 0);
 
   const balance = totalIncome - totalExpense;
@@ -292,7 +305,7 @@ function generateReport() {
 
   transactions.forEach((t) => {
     if (t.amount < 0) {
-      categorySummary[t.category] += Math.abs(t.amount);
+      categorySummary[t.category] = (categorySummary[t.category] || 0) + Math.abs(t.amount);
     }
   });
 
@@ -300,7 +313,13 @@ function generateReport() {
     reportText += `${category}: Rs ${categorySummary[category].toFixed(2)}\n`;
   }
 
-  alert(reportText);
+  // Assuming generatePDF is available from the linked script
+  const generatePDF = window.generatePDF;
+  if (generatePDF) {
+    generatePDF(transactions); // If this function generates the PDF
+  } else {
+    alert(reportText);
+  }
 }
 
 function setupTabs() {
@@ -391,29 +410,27 @@ function deleteCategory(categoryName) {
   }
 
   if (categoryName == "Other") {
-    alert("You can not delete Other category");
+    alert("You cannot delete the 'Other' category");
     return;
   }
 
-  if (
-    confirm(`Are you sure you want to delete the "${categoryName}" category?`)
-  ) {
+  if (confirm(`Are you sure you want to delete the "${categoryName}" category?`)) {
     // Remove category from array
     categories = categories.filter((cat) => cat !== categoryName);
 
     // Update transactions with this category to "Other" or first available category
-    const defaultCategory = "Other";
-    const transactions = getTransactionsFromStorage();
-
     transactions.forEach((transaction) => {
       if (transaction.category === categoryName) {
-        transaction.category = defaultCategory;
+        transaction.category = "Other"; // Default to "Other"
       }
     });
 
     updateLocalStorage();
+    saveCategoriesAndUpdate(); // Re-render category list and update dropdowns
+    init(); // Reinitialize app to update the UI
   }
 }
+
 
 // Save categories to localStorage and update UI
 function saveCategoriesAndUpdate() {
@@ -431,11 +448,10 @@ function updateCategoryDropdowns(categoryDropdowns) {
     const currentValue = dropdown.value;
     dropdown.innerHTML = "";
 
-    // Add all categories
     categories.forEach((category) => {
       dropdown.insertAdjacentHTML(
         "beforeend",
-        `<option value="${category.toLowerCase()}">${category}</option>`
+        `<option value="${category}">${category}</option>`  // No formatting needed
       );
     });
 

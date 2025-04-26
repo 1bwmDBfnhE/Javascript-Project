@@ -111,6 +111,13 @@ header {
   color: var(--error-color);
 }
 
+.main-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, auto);
+  gap: 20px;
+}
+
 .container {
   width: 95%;
   max-width: 1200px;
@@ -281,9 +288,10 @@ select {
 }
 
 .tab-content {
-  display: none;
-  padding: 10px 0;
+  max-height: 400px; /* Set a height according to your design */
+  overflow-y: auto;
 }
+
 
 .tab-content.active {
   display: block;
